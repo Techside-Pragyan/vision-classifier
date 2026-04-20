@@ -1,12 +1,18 @@
 import os
-import tensorflow as tf
-from tensorflow.keras.datasets import cifar10
-import numpy as np
+import torch
+import torchvision
+import torchvision.transforms as transforms
 from PIL import Image
+import numpy as np
 
 def save_dataset_as_images():
-    print("Loading CIFAR-10 dataset...")
-    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    print("Loading CIFAR-10 dataset via torchvision...")
+    
+    # Minimal transform just to get the images as PIL
+    transform = transforms.Compose([transforms.ToPILImage()])
+    
+    trainset = torchvision.datasets.CIFAR10(root='./data_cache', train=True, download=True)
+    testset = torchvision.datasets.CIFAR10(root='./data_cache', train=False, download=True)
     
     classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
     
@@ -22,28 +28,29 @@ def save_dataset_as_images():
                 os.makedirs(os.path.join(dir_path, cls))
 
     print("Saving training images...")
-    # Limit to 500 images per class for speed in this demo, but CIFAR has thousands
-    # We'll save a reasonable amount for a quick training session
     samples_per_class = 200 
-    
     class_counts = {cls: 0 for cls in classes}
-    for i in range(len(x_train)):
-        cls_idx = y_train[i][0]
-        cls_name = classes[cls_idx]
+    
+    for i, (img, label) in enumerate(trainset):
+        cls_name = classes[label]
         if class_counts[cls_name] < samples_per_class:
-            img = Image.fromarray(x_train[i])
             img.save(os.path.join(train_dir, cls_name, f"train_{i}.png"))
             class_counts[cls_name] += 1
+        
+        # Stop if all classes have enough samples
+        if all(count >= samples_per_class for count in class_counts.values()):
+            break
             
     print("Saving test images...")
     class_counts_test = {cls: 0 for cls in classes}
-    for i in range(len(x_test)):
-        cls_idx = y_test[i][0]
-        cls_name = classes[cls_idx]
-        if class_counts_test[cls_name] < 50: # 50 per class for testing
-            img = Image.fromarray(x_test[i])
+    for i, (img, label) in enumerate(testset):
+        cls_name = classes[label]
+        if class_counts_test[cls_name] < 50:
             img.save(os.path.join(test_dir, cls_name, f"test_{i}.png"))
             class_counts_test[cls_name] += 1
+        
+        if all(count >= 50 for count in class_counts_test.values()):
+            break
 
     print(f"Data prepared in {base_dir}")
 
